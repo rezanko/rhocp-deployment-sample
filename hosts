@@ -1,0 +1,190 @@
+[OSEv3:vars]
+###########################################################################
+### Ansible Vars
+###########################################################################
+timeout=60
+ansible_become=yes 
+ansible_user=ec2-user 
+
+###########################################################################
+### OpenShift Basic Vars
+###########################################################################
+
+# Set openshift_deployment_type
+openshift_deployment_type=openshift-enterprise 
+
+# disable checks, as we are not a production environment
+openshift_disable_check="disk_availability,memory_availability" 
+
+# Node group definitions 
+openshift_node_groups=[{'name': 'node-config-master', 'labels': ['node-role.kubernetes.io/master=true']}, {'name': 'node-config-infra', 'labels': ['node-role.kubernetes.io/infra=true']}, {'name': 'node-config-compute', 'labels': ['node-role.kubernetes.io/compute=true']}]
+
+# Docker registry credentials for registry.redhat.io 
+oreg_auth_user='{{ lookup("env", "OREG_AUTH_USER") }}'
+oreg_auth_password='{{ lookup("env", "OREG_AUTH_PASSWORD") }}'
+
+openshift_enable_unsupported_configurations=true
+
+
+###########################################################################
+### OpenShift Master Vars
+###########################################################################
+
+openshift_master_api_port=443  
+openshift_master_console_port=443
+
+openshift_master_cluster_hostname=loadbalancer.b5e7.internal 
+openshift_master_cluster_public_hostname=loadbalancer.b5e7.example.opentlc.com 
+openshift_master_default_subdomain=apps.b5e7.example.opentlc.com
+
+
+###########################################################################
+### OpenShift Network Vars
+###########################################################################
+
+osm_cluster_network_cidr=10.128.0.0/14 
+osm_host_subnet_length=9 
+openshift_portal_net=172.30.0.0/16 
+os_sdn_network_plugin_name='redhat/openshift-ovs-networkpolicy' 
+
+
+###########################################################################
+### OpenShift Authentication Vars
+###########################################################################
+
+# htpasswd auth
+openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider'}] 
+# Defining htpasswd users
+#openshift_master_htpasswd_users={'user1': '<pre-hashed password>', 'user2': '<pre-hashed password>'}
+# or
+openshift_master_htpasswd_file=/root/htpasswd.openshift
+
+
+
+###########################################################################
+### OpenShift Metrics and Logging Vars
+###########################################################################
+
+# Enable cluster metrics
+
+openshift_metrics_install_metrics=True 
+
+openshift_metrics_storage_kind=nfs 
+openshift_metrics_storage_access_modes=['ReadWriteOnce'] 
+openshift_metrics_storage_nfs_directory=/srv/nfs  
+openshift_metrics_storage_nfs_options='*(rw,root_squash)' 
+openshift_metrics_storage_volume_name=metrics 
+openshift_metrics_storage_volume_size=10Gi 
+openshift_metrics_storage_labels={'storage': 'metrics'} 
+
+openshift_metrics_cassandra_nodeselector={"node-role.kubernetes.io/infra":"true"} 
+openshift_metrics_hawkular_nodeselector={"node-role.kubernetes.io/infra":"true"} 
+openshift_metrics_heapster_nodeselector={"node-role.kubernetes.io/infra":"true"} 
+
+# Enable cluster logging
+
+openshift_logging_install_logging=True 
+
+openshift_logging_storage_kind=nfs  
+openshift_logging_storage_access_modes=['ReadWriteOnce']  
+openshift_logging_storage_nfs_directory=/srv/nfs 
+openshift_logging_storage_nfs_options='*(rw,root_squash)' 
+openshift_logging_storage_volume_name=logging 
+openshift_logging_storage_volume_size=10Gi 
+openshift_logging_storage_labels={'storage': 'logging'} 
+
+# openshift_logging_kibana_hostname=kibana.apps.b5e7.example.opentlc.com
+openshift_logging_es_cluster_size=1
+openshift_logging_es_memory_limit=8Gi 
+
+openshift_logging_es_nodeselector={"node-role.kubernetes.io/infra":"true"} 
+openshift_logging_kibana_nodeselector={"node-role.kubernetes.io/infra":"true"} 
+openshift_logging_curator_nodeselector={"node-role.kubernetes.io/infra":"true"} 
+
+# Allow use of NFS for logging and metrics 
+openshift_enable_unsupported_configurations=True
+
+
+
+###########################################################################
+### OpenShift Router and Registry Vars
+###########################################################################
+
+openshift_router_selector='node-role.kubernetes.io/infra=true' 
+openshift_hosted_router_replicas=2 
+
+openshift_registry_selector='node-role.kubernetes.io/infra=true' 
+openshift_hosted_registry_replicas=1 
+
+openshift_hosted_registry_storage_kind=nfs 
+openshift_hosted_registry_storage_access_modes=['ReadWriteMany']
+openshift_hosted_registry_storage_nfs_directory=/srv/nfs
+openshift_hosted_registry_storage_nfs_options='*(rw,root_squash)'
+openshift_hosted_registry_storage_volume_name=registry
+openshift_hosted_registry_storage_volume_size=20Gi
+
+
+###########################################################################
+### OpenShift Service Catalog Vars
+###########################################################################
+
+openshift_enable_service_catalog=true 
+ansible_service_broker_install=true 
+template_service_broker_install=true 
+openshift_template_service_broker_namespaces=['openshift']
+
+
+###########################################################################
+### OpenShift Monitoring Vars
+###########################################################################
+openshift_cluster_monitoring_operator_install=true 
+openshift_cluster_monitoring_operator_node_selector={'node-role.kubernetes.io/infra':'true'}  
+
+
+
+###########################################################################
+### OpenShift Hosts
+###########################################################################
+[OSEv3:children] 
+lb
+nfs
+nodes
+
+[lb] 
+loadbalancer.b5e7.internal
+
+[nfs] 
+support1.b5e7.internal
+
+[etcd:children] 
+masters
+
+[nodes:children] 
+masters
+infra
+compute
+
+[masters] 
+master1.b5e7.internal
+master2.b5e7.internal
+master3.b5e7.internal
+
+[masters:vars] 
+openshift_node_group_name='node-config-master'
+
+[infra] 
+infranode1.b5e7.internal
+infranode2.b5e7.internal
+
+[infra:vars]
+openshift_node_group_name='node-config-infra'
+
+[compute]
+node1.b5e7.internal
+node2.b5e7.internal
+node3.b5e7.internal
+
+[compute:vars]
+openshift_node_group_name='node-config-compute'
+
+ 
